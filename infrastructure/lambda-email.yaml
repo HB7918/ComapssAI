@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function for SSO UX intake email notifications
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+  FromEmail:
+    Type: String
+    Default: hbaisani@amazon.com
+  UXTeamEmail:
+    Type: String
+    Default: hbaisani@amazon.com
+  IntakesTableName:
+    Type: String
+    Default: compass-ai-intakes-dev
+
+Resources:
+  SendIntakeEmailFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'compass-ai-send-intake-email-${Environment}'
+      Runtime: nodejs18.x
+      Handler: index.handler
+      Timeout: 30
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          FROM_EMAIL: !Ref FromEmail
+          UX_TEAM_EMAIL: !Ref UXTeamEmail
+      Code:
+        ZipFile: |
+          // Placeholder - deploy actual code via CI/CD
+          exports.handler = async (event) => { console.log(event); };
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'compass-ai-lambda-email-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SESAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: '*'
+        - PolicyName: DynamoDBStreamAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${IntakesTableName}/stream/*'
+
+  DynamoDBEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${IntakesTableName}/stream/*'
+      FunctionName: !Ref SendIntakeEmailFunction
+      StartingPosition: LATEST
+      BatchSize: 10
+
+Outputs:
+  FunctionArn:
+    Value: !GetAtt SendIntakeEmailFunction.Arn
+  FunctionName:
+    Value: !Ref SendIntakeEmailFunction

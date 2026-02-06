@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DynamoDB table for Compass AI UX Intake requests
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+
+  TableName:
+    Type: String
+    Default: compass-ai-intake
+    Description: Name of the DynamoDB table
+
+Resources:
+  IntakeTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${TableName}-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: referenceNumber
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: referenceNumber-index
+          KeySchema:
+            - AttributeName: referenceNumber
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: status-createdAt-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Application
+          Value: CompassAI
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  TableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref IntakeTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+
+  TableArn:
+    Description: ARN of the DynamoDB table
+    Value: !GetAtt IntakeTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableArn'
