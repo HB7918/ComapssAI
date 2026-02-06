@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import intakeApi from '../services/intakeApi';
 import './mockups.css';
 
 const ChatIntake = () => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [currentStep, setCurrentStep] = useState('welcome');
@@ -86,7 +88,7 @@ const ChatIntake = () => {
         setCurrentStep('problem');
         setTimeout(() => {
           addBotMessage(
-            "Great! Let's start with the most important part.\n\n**What customer problem are you trying to solve?**\n\nPlease describe the problem in detail. Include:\n• What customers are trying to accomplish\n• Current pain points or friction\n• Expected outcome"
+            "**What customer problem are you solving?**\n\nInclude: what customers want to do, pain points, expected outcome."
           );
         }, 300);
         break;
@@ -96,18 +98,18 @@ const ChatIntake = () => {
           setCurrentStep('feature_type');
           setTimeout(() => {
             addBotMessage(
-              "Now, help me understand the scope of this request.\n\n**Is this a new feature or an enhancement to an existing feature?**",
+              "**Is this a new feature or enhancement?**",
               [
-                { label: '🆕 New Feature - Building something from scratch', value: 'new' },
-                { label: '✨ Enhancement - Improving an existing feature', value: 'enhancement' },
-                { label: "🤔 Not sure - Need help determining this", value: 'unsure' }
+                { label: '🆕 New Feature', value: 'new' },
+                { label: '✨ Enhancement', value: 'enhancement' },
+                { label: '🤔 Not sure', value: 'unsure' }
               ]
             );
           }, 300);
         } else {
           setCurrentStep('problem');
           setTimeout(() => {
-            addBotMessage("No problem! Let's try again. Please describe the customer problem you're trying to solve:");
+            addBotMessage("Let's try again. Describe the customer problem:");
           }, 300);
         }
         break;
@@ -139,40 +141,18 @@ const ChatIntake = () => {
             addBotMessage("Please specify the service name:");
           }, 300);
         } else {
-          setCurrentStep('timeline');
+          setCurrentStep('research');
           setTimeout(() => {
             addBotMessage(
-              "Just a few more quick questions to help us prioritize and prepare...\n\n**What's the target timeline for this feature?**",
+              "**Do you have any existing research or customer feedback?**",
               [
-                { label: '🔴 Urgent (next sprint)', value: 'urgent' },
-                { label: '🟡 High priority (next quarter)', value: 'high' },
-                { label: '🟢 Standard (next 6 months)', value: 'standard' },
-                { label: '⚪ Future consideration', value: 'future' }
+                { label: 'Yes (I can provide links)', value: 'yes' },
+                { label: 'No', value: 'no' },
+                { label: 'In progress', value: 'in_progress' }
               ]
             );
           }, 300);
         }
-        break;
-
-      case 'timeline':
-        const timelineLabels = {
-          'urgent': '🔴 Urgent (next sprint)',
-          'high': '🟡 High priority (next quarter)',
-          'standard': '🟢 Standard (next 6 months)',
-          'future': '⚪ Future consideration'
-        };
-        setIntakeData(prev => ({ ...prev, timeline: timelineLabels[value] || value }));
-        setCurrentStep('research');
-        setTimeout(() => {
-          addBotMessage(
-            "**Do you have any existing research or customer feedback?**",
-            [
-              { label: 'Yes (I can provide links)', value: 'yes' },
-              { label: 'No', value: 'no' },
-              { label: 'In progress', value: 'in_progress' }
-            ]
-          );
-        }, 300);
         break;
 
       case 'research':
@@ -185,8 +165,31 @@ const ChatIntake = () => {
         } else {
           setCurrentStep('stakeholder');
           setTimeout(() => {
-            addBotMessage("**Who is the primary stakeholder or PM for this project?** (Optional - press Enter to skip)");
+            addBotMessage(
+              "**Who is the primary stakeholder or PM for this project?**",
+              [{ label: 'Skip this question', value: 'skip' }]
+            );
           }, 300);
+        }
+        break;
+
+      case 'stakeholder':
+        if (value === 'skip') {
+          setIntakeData(prev => ({ ...prev, stakeholder: 'Not specified' }));
+          setCurrentStep('constraints');
+          setTimeout(() => {
+            addBotMessage(
+              "**Are there any specific constraints or requirements we should know about?**",
+              [{ label: 'Skip this question', value: 'skip' }]
+            );
+          }, 300);
+        }
+        break;
+
+      case 'constraints':
+        if (value === 'skip') {
+          setIntakeData(prev => ({ ...prev, constraints: '' }));
+          showReview({ ...intakeData, constraints: '' });
         }
         break;
 
@@ -243,15 +246,14 @@ const ChatIntake = () => {
 
       case 'other_service':
         setIntakeData(prev => ({ ...prev, service: value, otherService: value }));
-        setCurrentStep('timeline');
+        setCurrentStep('research');
         setTimeout(() => {
           addBotMessage(
-            "**What's the target timeline for this feature?**",
+            "**Do you have any existing research or customer feedback?**",
             [
-              { label: '🔴 Urgent (next sprint)', value: 'urgent' },
-              { label: '🟡 High priority (next quarter)', value: 'high' },
-              { label: '🟢 Standard (next 6 months)', value: 'standard' },
-              { label: '⚪ Future consideration', value: 'future' }
+              { label: 'Yes (I can provide links)', value: 'yes' },
+              { label: 'No', value: 'no' },
+              { label: 'In progress', value: 'in_progress' }
             ]
           );
         }, 300);
@@ -261,7 +263,10 @@ const ChatIntake = () => {
         setIntakeData(prev => ({ ...prev, researchLinks: value }));
         setCurrentStep('stakeholder');
         setTimeout(() => {
-          addBotMessage("**Who is the primary stakeholder or PM for this project?** (Optional - press Enter to skip)");
+          addBotMessage(
+            "**Who is the primary stakeholder or PM for this project?**",
+            [{ label: 'Skip this question', value: 'skip' }]
+          );
         }, 300);
         break;
 
@@ -269,7 +274,10 @@ const ChatIntake = () => {
         setIntakeData(prev => ({ ...prev, stakeholder: value || 'Not specified' }));
         setCurrentStep('constraints');
         setTimeout(() => {
-          addBotMessage("**Are there any specific constraints or requirements we should know about?** (Optional - press Enter to skip)");
+          addBotMessage(
+            "**Are there any specific constraints or requirements we should know about?**",
+            [{ label: 'Skip this question', value: 'skip' }]
+          );
         }, 300);
         break;
 
@@ -285,15 +293,17 @@ const ChatIntake = () => {
 
   const showReview = (data) => {
     setCurrentStep('review_confirm');
-    const featureTypeLabel = data.featureType === 'new' ? '🆕 New Feature' : 
-                            data.featureType === 'enhancement' ? '✨ Enhancement' : '🤔 To be determined';
+    const featureTypeLabel = data.featureType === 'new' ? 'New Feature' : 
+                            data.featureType === 'enhancement' ? 'Enhancement' : 'TBD';
+    const stakeholderDisplay = data.stakeholder && data.stakeholder !== 'Not specified' ? data.stakeholder : 'None provided';
+    const constraintsDisplay = data.constraints ? data.constraints : 'None provided';
     
     setTimeout(() => {
       addBotMessage(
-        `Perfect! Let me summarize your request:\n\n**📋 Intake Summary**\n\n**Customer Problem:**\n${data.problem}\n\n**Feature Type:** ${featureTypeLabel}${data.existingFeature ? `\nEnhancing: ${data.existingFeature}` : ''}\n\n**Service:** ${data.service}\n\n**Timeline:** ${data.timeline}\n\n**Stakeholder:** ${data.stakeholder || 'Not specified'}\n\n${data.constraints ? `**Additional Context:** ${data.constraints}\n\n` : ''}Does everything look correct?`,
+        `**📋 Intake Summary**\n\n**Problem:** ${data.problem.substring(0, 100)}${data.problem.length > 100 ? '...' : ''}\n**Type:** ${featureTypeLabel}${data.existingFeature ? ` (${data.existingFeature})` : ''}\n**Service:** ${data.service}\n**Stakeholder:** ${stakeholderDisplay}\n**Additional Context:** ${constraintsDisplay}\n\nLook correct?`,
         [
-          { label: '✅ Yes, submit this request', value: 'submit' },
-          { label: '✏️ Edit my responses', value: 'edit' },
+          { label: '✅ Submit', value: 'submit' },
+          { label: '✏️ Edit', value: 'edit' },
           { label: '❌ Cancel', value: 'cancel' }
         ]
       );
@@ -321,7 +331,7 @@ const ChatIntake = () => {
       setCurrentStep('complete');
       setTimeout(() => {
         addBotMessage(
-          `🎉 **Your intake has been submitted successfully!**\n\n**Reference Number:** ${response.referenceNumber}\n\n**What happens next?**\n✅ Your request has been added to our intake queue\n📧 You'll receive a confirmation email shortly\n👥 The SSO UX team will review your submission\n💡 We'll contact you within 48 hours with an initial concept\n\n---\n\nNeed to make changes? Reply to the confirmation email with your reference number.\n\nHave questions? Contact us at sso-ux-intake@amazon.com\n\nThank you for using the SSO UX intake portal! 🚀`
+          `🎉 Your intake has been submitted successfully!\n\nReference Number: ${response.referenceNumber}\n\nWhat happens next?\n✅ Your request has been added to our intake queue\n👥 The SSO UX team will review your submission\n💡 We'll contact you within 48 hours with an initial concept\n\nNeed to make changes? Reply to the confirmation email with your reference number.\nHave questions? Contact us at sso-ux-intake@amazon.com`
         );
       }, 300);
     } catch (error) {
@@ -331,7 +341,7 @@ const ChatIntake = () => {
       setCurrentStep('complete');
       setTimeout(() => {
         addBotMessage(
-          `🎉 **Your intake has been submitted!**\n\n**Reference Number:** ${refNumber}\n\n⚠️ *Note: There was an issue connecting to the database. Your request has been saved locally and will be synced when the connection is restored.*\n\n**What happens next?**\n✅ Your request has been added to our intake queue\n📧 You'll receive a confirmation email shortly\n👥 The SSO UX team will review your submission\n💡 We'll contact you within 48 hours with an initial concept\n\n---\n\nThank you for using the SSO UX intake portal! 🚀`
+          `🎉 Your intake has been submitted successfully!\n\nReference Number: ${refNumber}\n\nWhat happens next?\n✅ Your request has been added to our intake queue\n👥 The SSO UX team will review your submission\n💡 We'll contact you within 48 hours with an initial concept\n\nHave questions? Contact us at sso-ux-intake@amazon.com`
         );
       }, 300);
     } finally {
@@ -349,13 +359,13 @@ const ChatIntake = () => {
           line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
           // Italic
           line = line.replace(/\*(.+?)\*/g, '<em>$1</em>');
-          // Bullet points
+          // Bullet points - display inline-block to remove extra spacing
           if (line.startsWith('•') || line.startsWith('✅') || line.startsWith('📧') || line.startsWith('👥') || line.startsWith('💡')) {
-            return `<div class="message-bullet">${line}</div>`;
+            return `<span class="message-bullet">${line}</span>`;
           }
-          return line;
+          return line + '<br/>';
         })
-        .join('<br/>');
+        .join('');
     };
 
     return (
@@ -375,45 +385,21 @@ const ChatIntake = () => {
       {/* Sidebar */}
       <aside className="chat-sidebar">
         <div className="sidebar-header">
-          <h1 className="brand-logo">
+          <h1 className="brand-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
             <span className="logo-icon">🧭</span>
             <span className="logo-text">Compass AI</span>
           </h1>
         </div>
 
         <div className="sidebar-section">
-          <h3 className="sidebar-section-title">UX Intake Portal</h3>
-          <p className="intake-description">Security Search and Observability</p>
+          <button className="back-to-home-btn" onClick={() => navigate('/')}>
+            ← Back to Home
+          </button>
         </div>
 
         <div className="sidebar-section">
-          <h3 className="sidebar-section-title">Progress</h3>
-          <div className="intake-progress">
-            <div className={`progress-step ${currentStep === 'welcome' ? 'active' : messages.length > 1 ? 'complete' : ''}`}>
-              <span className="step-indicator">1</span>
-              <span className="step-label">Welcome</span>
-            </div>
-            <div className={`progress-step ${['problem', 'problem_confirm'].includes(currentStep) ? 'active' : ['feature_type', 'existing_feature', 'service', 'other_service', 'timeline', 'research', 'research_links', 'stakeholder', 'constraints', 'review_confirm', 'complete'].includes(currentStep) ? 'complete' : ''}`}>
-              <span className="step-indicator">2</span>
-              <span className="step-label">Problem</span>
-            </div>
-            <div className={`progress-step ${['feature_type', 'existing_feature'].includes(currentStep) ? 'active' : ['service', 'other_service', 'timeline', 'research', 'research_links', 'stakeholder', 'constraints', 'review_confirm', 'complete'].includes(currentStep) ? 'complete' : ''}`}>
-              <span className="step-indicator">3</span>
-              <span className="step-label">Feature Type</span>
-            </div>
-            <div className={`progress-step ${['service', 'other_service'].includes(currentStep) ? 'active' : ['timeline', 'research', 'research_links', 'stakeholder', 'constraints', 'review_confirm', 'complete'].includes(currentStep) ? 'complete' : ''}`}>
-              <span className="step-indicator">4</span>
-              <span className="step-label">Service</span>
-            </div>
-            <div className={`progress-step ${['timeline', 'research', 'research_links', 'stakeholder', 'constraints'].includes(currentStep) ? 'active' : ['review_confirm', 'complete'].includes(currentStep) ? 'complete' : ''}`}>
-              <span className="step-indicator">5</span>
-              <span className="step-label">Details</span>
-            </div>
-            <div className={`progress-step ${currentStep === 'review_confirm' ? 'active' : currentStep === 'complete' ? 'complete' : ''}`}>
-              <span className="step-indicator">6</span>
-              <span className="step-label">Review</span>
-            </div>
-          </div>
+          <h3 className="sidebar-section-title">UX Intake Portal</h3>
+          <p className="intake-description">Security Search and Observability</p>
         </div>
 
         <div className="sidebar-footer">
@@ -464,7 +450,7 @@ const ChatIntake = () => {
                 placeholder={currentStep === 'complete' ? 'Intake complete' : 'Type your response...'}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                disabled={currentStep === 'complete' || showOptions}
+                disabled={currentStep === 'complete' || (showOptions && !['stakeholder', 'constraints'].includes(currentStep))}
               />
               <button type="submit" className="send-btn" disabled={!inputValue.trim() || currentStep === 'complete'}>
                 <span>↑</span>
